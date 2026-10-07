@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id                 String   @id // Maps to Clerk ID
+  email              String
+  role               Role     @default(USER)
+  banned             Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  subscriptionStatus String   @default("FREE")
+  plan               Plan     @default(FREE)
+  lemonSqueezyCustomerId String?
+  subscriptionId     String?
+  projects           Project[]
+}
+
+model Project {
+  id              String           @id @default(cuid())
+  name            String
+  domain          String
+  brandColor      String
+  widgetPosition  String           @default("bottom-right")
+  widgetIcon      String           @default("sparkles")
+  widgetTheme     String           @default("dark")
+  allowedOrigins  String[]         @default([])
+  customCSS       String?
+  removeBranding  Boolean          @default(false)
+  webhookUrl      String?          // Business Feature
+  ownerId         String
+  owner           User             @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime         @default(now())
+  posts           Post[]
+  subscribers     Subscriber[]
+  dailyStats      DailyStat[]
+}
+
+model DailyStat {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  views     Int      @default(0)
+  clicks    Int      @default(0)
+
+  @@unique([projectId, date])
+  @@index([projectId, date])
+}
+
+enum PostCategory {
+  NEW
+  IMPROVED
+  FIXED
+}
+
+model Post {
+  id        String       @id @default(cuid())
+  title     String
+  content   String
+  category  PostCategory
+  published    Boolean
+  scheduledFor DateTime?
+  views     Int          @default(0)
+  projectId String
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  reactions Reaction[]
+
+  @@index([projectId])
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  count     Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([postId, emoji])
+}
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  email     String
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([email, projectId])
+  @@index([projectId])
+}
+
+
